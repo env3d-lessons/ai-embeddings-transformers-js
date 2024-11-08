@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css">
+    <title>Sentence Similarity with transformers.js</title>
+</head>
+
+<body>
+    <h1>Sentence Similarity Example</h1>
+    <input type="text" id="inputSentence" placeholder="Enter a sentence" size=60/>
+    <button id="searchButton">Find Similar Sentences</button>
+
+    <ul id="output"></ul>
+
+    <!-- The new module type allows import to be used -->
+    <script type="module">
+
+        import { pipeline } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.2';
+
+        // This is the main function to do all the work
+        async function findSimilarSentences() {
+            const inputSentence = document.getElementById("inputSentence").value;
+
+            // Define a sample set of sentences to compare
+            const sentences = [
+                "The cat is on the mat.",
+                "A dog was barking loudly.",
+                "The quick brown fox jumps over the lazy dog.",
+                "A cat sat on a mat.",
+                "Birds are chirping outside."
+            ];
+
+            // https://huggingface.co/docs/transformers.js/api/pipelines#module_pipelines.FeatureExtractionPipeline
+            const extractor = await pipeline('feature-extraction', 'Xenova/bert-base-uncased', { revision: 'default' });
+
+            // Encode the input sentence and the comparison sentences
+            let inputEncoded = await extractor(inputSentence, { pooling: 'mean', normalize: true });
+            inputEmbeddings = inputEncoded['data'];
+
+
+            const sentenceEmbeddings = [];
+            for (let i = 0; i < sentences.length; i++) {
+                const embed = await extractor(sentences[i], { pooling: 'mean', normalize: true });
+                sentenceEmbeddings.push(embed['data']);
+            }
+
+            console.log(inputEmbeddings);
+            console.log(sentenceEmbeddings);
+
+            // Calculate cosine similarity
+            const similarities = sentences.map((sentence, index) => ({
+                sentence,
+                similarity: cosineSimilarity(inputEmbeddings, sentenceEmbeddings[index])
+            }));
+
+            // Sort by similarity
+            similarities.sort((a, b) => b.similarity - a.similarity);
+
+            // Display results
+            const output = document.getElementById("output");
+            output.innerHTML = "";
+            similarities.forEach(({ sentence, similarity }) => {
+                const listItem = document.createElement("li");
+                listItem.textContent = `${sentence} (Similarity: ${similarity.toFixed(2)})`;
+                output.appendChild(listItem);
+            });
+        }
+
+        function cosineSimilarity(vecA, vecB) {
+            const dotProduct = vecA.reduce((sum, val, i) => sum + val * vecB[i], 0);
+            const magnitudeA = Math.sqrt(vecA.reduce((sum, val) => sum + val * val, 0));
+            const magnitudeB = Math.sqrt(vecB.reduce((sum, val) => sum + val * val, 0));
+            return dotProduct / (magnitudeA * magnitudeB);
+        }
+
+        // Make sure the button calls the correct function
+        searchButton.addEventListener('click', findSimilarSentences);
+    </script>
+</body>
+
+</html>
